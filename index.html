@@ -1,22 +1,29 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="theme-color" content="#091b39"><title>Reinos de Axé — Duelo Estratégico V23</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"></head><body><div id="app">
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="theme-color" content="#091b39"><title>Reinos de Axé — Arena Ancestral 3D V29</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"><link rel="stylesheet" href="style.css">
+</head><body><div id="app">
 <section class="screen active" id="lobby"><div class="topbar"><div><div class="brand">✦ REINOS DE AXÉ</div><div class="small"><i class="fa-solid fa-crown"></i> <span id="playerLevel">Nível 1</span> · <span id="trophies">0</span> AXÉ DE RANK</div></div><div class="currency"><span class="gold">● <span data-coins>1800</span></span> &nbsp; <span class="gem">◆ <span data-gems>90</span></span></div></div><div class="lobby-center"><button class="realm-switch left" id="realmPrev" onclick="shiftRealm(-1)" aria-label="Reino anterior"><i class="fa-solid fa-chevron-left"></i></button><button class="realm-switch right" id="realmNext" onclick="shiftRealm(1)" aria-label="Próximo reino"><i class="fa-solid fa-chevron-right"></i></button><div class="realm-progress" id="realmProgress"></div><div class="realm-dots" id="realmDots"></div><div class="kingdom-label">REINO DE IEMANJÁ</div><div class="kingdom"><div class="palace"><span class="palace-roof"></span><span class="palace-body"><i></i><i></i><i></i></span><span class="palace-steps"></span></div><div class="waves"></div></div><div class="lobby-info"><i class="fa-solid fa-water"></i> Santuário das Sete Ondas <div class="small">Ganhe Axé de ranking para ascender aos próximos reinos</div></div></div><div class="lobby-actions"><div class="actions-row"><button class="btn blue" onclick="show('collection')"><i class="fa-solid fa-people-group"></i><br>CORRENTE</button><button class="btn primary" onclick="startBattle()"><i class="fa-solid fa-shield-halved"></i> BATALHAR</button><button class="btn purple" onclick="show('realms')"><i class="fa-solid fa-place-of-worship"></i><br>REINOS</button></div><div class="nav"><button onclick="show('collection')"><i class="fa-solid fa-book-open"></i><br>ACERVO</button><button onclick="show('shop')"><i class="fa-solid fa-store"></i><br>LOJA</button><button onclick="show('realms')"><i class="fa-solid fa-map"></i>️<br>JORNADA</button><button onclick="show('settings')"><i class="fa-solid fa-gear"></i><br>AJUSTES</button></div></div></section>
 <section class="screen" id="collection"><div class="topbar"><button class="back" onclick="show('lobby')"><i class="fa-solid fa-arrow-left"></i></button><div class="title">ACERVO DE ENTIDADES</div><div class="currency gold">● <span data-coins>1800</span></div></div><div class="tabs" id="deckTabs"></div><div class="scroll"><div class="section"><i class="fa-solid fa-shield-halved"></i> Sua corrente de batalha <span class="small">(toque para trocar)</span></div><div class="deck" id="deckGrid"></div><div class="statline"><span class="pill">✦ Custo médio: <span id="avgCost">3.8</span></span><span class="pill">8 entidades</span></div><div class="section"><i class="fa-solid fa-scroll"></i> Entidades do acervo</div><div class="deck" id="allCards"></div><p class="hint">Toque em uma carta do deck e depois em outra da coleção para substituir.</p></div></section>
 <section class="screen" id="shop"><div class="topbar"><button class="back" onclick="show('lobby')"><i class="fa-solid fa-arrow-left"></i></button><div class="title">MERCADO DOS REINOS</div><div class="currency gold">● <span data-coins>1800</span></div></div><div class="scroll"><div class="panel" style="padding:15px;text-align:center;margin-bottom:16px"><div style="font-size:50px"><i class="fa-solid fa-box-open"></i></div><h2>Mistério dos Reinos</h2><p>Receba moedas e essências espirituais.</p><button class="btn primary" onclick="openChest()">REVELAR MISTÉRIO · 300 ●</button></div><div class="section"><i class="fa-solid fa-wand-magic-sparkles"></i> Fortalecimento de entidades</div><div id="upgradeList"></div></div></section>
 <section class="screen" id="realms"><div class="topbar"><button class="back" onclick="show('lobby')"><i class="fa-solid fa-arrow-left"></i></button><div class="title">OS SETE REINOS</div><span><i class="fa-solid fa-trophy"></i></span></div><div class="scroll" id="realmList"></div></section>
 <section class="screen" id="settings"><div class="topbar"><button class="back" onclick="show('lobby')"><i class="fa-solid fa-arrow-left"></i></button><div class="title">AJUSTES DO VIAJANTE</div></div><div class="scroll"><div class="premium-section"><h3>Preferências</h3><div class="settings-row">Efeitos sonoros <input id="optSound" type="checkbox" onchange="state.settings.sound=this.checked;soundOn=this.checked;save()"></div><div class="settings-row">Partículas e encantamentos <input id="optFx" type="checkbox" onchange="state.settings.effects=this.checked;save()"></div><div class="settings-row">Qualidade gráfica <select id="optQuality" onchange="state.settings.quality=this.value;save()"><option value="alta">Alta</option><option value="economica">Econômica</option></select></div></div><div class="premium-section"><h3>Perfil do viajante</h3><p>Progresso armazenado neste aparelho. Compras são apenas simulações e não utilizam dinheiro real.</p><button class="btn blue" onclick="if(confirm('Recomeçar sua jornada?')){localStorage.removeItem(STORE);location.reload()}">REINICIAR JORNADA</button></div></div></section><section class="screen" id="battle"><div class="battlehead"><button class="enemy-profile" onclick="showOpponent()" title="Ver perfil adversário"><span class="enemy-avatar"><i class="fa-solid fa-user-ninja"></i></span><span class="enemy-details"><b id="enemyName">Guardião das Marés</b><small id="enemyRank">Grau 1 · Axé 0</small></span></button><span><i class="fa-solid fa-circle"></i> <span id="enemyCrowns">0</span> <i class="fa-solid fa-crown"></i></span><span id="timer">3:00</span><span><i class="fa-solid fa-crown"></i> <span id="myCrowns">0</span> <i class="fa-solid fa-circle"></i></span><button onclick="leaveBattle()" style="background:#3b2444;border-radius:8px;padding:5px 8px"><i class="fa-solid fa-xmark"></i></button></div><div class="battlefield" id="field"><canvas id="canvas"></canvas></div><div class="battlebottom"><div class="hand" id="hand"></div><div class="energyrow"><span style="color:#efa3ff">✦ <span id="energy">5</span></span><div class="meter"><div class="fill" id="energyFill"></div></div><span class="small" id="nextCard">Próxima invocação: <i class="fa-solid fa-wand-magic-sparkles"></i></span></div></div></section>
 <div class="overlay" id="opponentModal"><div class="modal panel"><div style="font-size:40px;color:#e6c789"><i class="fa-solid fa-user-ninja"></i></div><h2 id="opponentTitle">Guardião das Marés</h2><p id="opponentInfo"></p><p class="small">Adversário controlado pelo jogo nesta versão demonstrativa. Multiplayer online ainda não disponível.</p><button class="btn primary" onclick="document.getElementById('opponentModal').classList.remove('show')">VOLTAR AO COMBATE</button></div></div><div class="overlay" id="result"><div class="modal panel"><div style="font-size:60px" id="resultIcon"><i class="fa-solid fa-trophy"></i></div><h2 id="resultTitle">VITÓRIA!</h2><p id="resultText"></p><button class="btn primary" style="width:100%" onclick="document.getElementById('result').classList.remove('show');show('lobby')">VOLTAR AO REINO</button></div></div><div class="toast" id="toast"></div></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 <script src="script.js"></script>
-
-
-
-
-
-
-
-
-
-
-
-
-
 </body></html>

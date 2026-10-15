@@ -16,7 +16,7 @@
 const REALMS=[['fa-water','Iemanjá','Santuário das Sete Ondas',0],['fa-tree','Oxóssi','Matas Encantadas',120],['fa-shield-halved','Ogum','Fortaleza de Ferro',300],['fa-mountain','Xangô','Pedreiras da Justiça',600],['fa-sun','Oxalá','Templo da Luz',1000],['fa-child-reaching','Iori','Jardim das Crianças',1500],['fa-hands-praying','Iorimá','Vale dos Ancestrais',2200]];
 const STORE='reinosaxe_royale_v4';let saved={};try{saved=JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){}const state={coins:saved.coins??1800,gems:saved.gems??90,trophies:saved.trophies??0,owned:saved.owned??['marinheiro','flechas','pai','boiadeiro','oxe','oxossi','ogum','iemanja','mare'],deck:saved.deck??['iemanja','ogum','oxossi','flechas','marinheiro','pai','boiadeiro','mare'],levels:saved.levels??{},fragments:saved.fragments??{},decks:saved.decks??null,settings:saved.settings??{sound:true,quality:'alta',effects:true},claimed:saved.claimed??[]};function save(){state.decks[activeDeck-1]=state.deck.slice();localStorage.setItem(STORE,JSON.stringify(state))}function updateWallet(){document.querySelectorAll('[data-coins]').forEach(e=>e.textContent=state.coins);document.querySelectorAll('[data-gems]').forEach(e=>e.textContent=state.gems);document.getElementById('trophies').textContent=state.trophies;document.getElementById('playerLevel').textContent='Grau '+(1+Math.floor(state.trophies/100));document.querySelector('.kingdom-label').textContent='REINO DE '+currentRealm()[1].toUpperCase();document.querySelector('.lobby-info').firstChild.textContent=currentRealm()[2]+' · '}function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));if(id==='collection')renderCollection();if(id==='shop')renderShop();if(id==='realms')renderRealms();updateWallet()}let toastTimeout;function toast(msg){let el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),1900)}let audioCtx=null,soundOn=true;function sound(freq=400,dur=.1,wave='sine',volume=.06,slide=0){if(!soundOn)return;try{audioCtx??=new (window.AudioContext||window.webkitAudioContext)();audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime;o.type=wave;o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide),t+dur);g.gain.setValueAtTime(volume,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+dur)}catch(e){}}function toggleSound(){soundOn=!soundOn;state.settings.sound=soundOn;save();toast(soundOn?'Som ligado':'Som desligado');if(soundOn)sound(600,.15)}
 function cardEl(c,click,extra=''){let el=document.createElement('button');el.className='card '+c.rarity+' '+extra+(state.owned.includes(c.id)?'':' locked-card');el.innerHTML=`<span class="cost">${c.cost}</span><span class="portrait portrait-${c.id}"><span class="halo"></span><span class="head"></span><span class="torso"></span><span class="weapon"></span></span>${state.owned.includes(c.id)?'':'<span class="lockmark">BLOQUEADO</span>'}<span class="name">${c.name}</span><span class="level">Nível ${state.levels[c.id]||1}</span>`;el.onclick=click;return el}let replaceIndex=-1,activeDeck=1;state.decks??=Array.from({length:5},()=>state.deck.slice());soundOn=state.settings.sound!==false;function renderCollection(){let tabs=document.getElementById('deckTabs');tabs.innerHTML='';for(let i=1;i<=5;i++){let b=document.createElement('button');b.textContent='CORRENTE '+i;b.className=i===activeDeck?'sel':'';b.onclick=()=>{state.decks[activeDeck-1]=state.deck.slice();activeDeck=i;state.deck=state.decks[i-1].slice();replaceIndex=-1;renderCollection()};tabs.append(b)}let grid=document.getElementById('deckGrid');grid.innerHTML='';state.deck.forEach((id,i)=>{let c=CARDS.find(x=>x.id===id);grid.append(cardEl(c,()=>{replaceIndex=i;renderCollection();toast('Escolha uma entidade do acervo para substituir')},replaceIndex===i?'selected':''))});let all=document.getElementById('allCards');all.innerHTML='';CARDS.forEach(c=>all.append(cardEl(c,()=>{if(replaceIndex<0){toast(c.name+' • '+c.cost+' de Axé para invocar');return}if(!state.owned.includes(c.id)){toast('Desperte esta entidade no Mercado ou em recompensas');return}let existing=state.deck.indexOf(c.id);if(existing>=0)[state.deck[existing],state.deck[replaceIndex]]=[state.deck[replaceIndex],state.deck[existing]];else state.deck[replaceIndex]=c.id;replaceIndex=-1;save();renderCollection();sound(700,.15)})));document.getElementById('avgCost').textContent=(state.deck.reduce((n,id)=>n+CARDS.find(c=>c.id===id).cost,0)/8).toFixed(1)}function renderShop(){let el=document.getElementById('upgradeList');el.innerHTML='<div class="section">HERÓIS · DESBLOQUEAR COM MOEDAS OU JOIAS</div>';CARDS.forEach(c=>{if(!state.owned.includes(c.id)){let box=document.createElement('div');box.className='panel shophero';let price=c.rarity==='legend'?2200:c.rarity==='epic'?1450:900;let gems=c.rarity==='legend'?220:c.rarity==='epic'?150:90;box.innerHTML='<div class="shop-portrait"><i class="fa-solid '+c.emoji+'"></i></div><div class="shop-desc"><b>'+c.name+'</b><small>Herói • '+c.cost+' de Axé por invocação</small></div>';let a=document.createElement('button');a.className='btn darkbtn';a.textContent=price+' ●';a.onclick=()=>buyHero(c,price,'coins');let b=document.createElement('button');b.className='btn darkbtn';b.textContent=gems+' ◆';b.onclick=()=>buyHero(c,gems,'gems');box.append(a,b);el.append(box)}});let title=document.createElement('div');title.className='section';title.textContent='EVOLUÇÃO DE HERÓIS';el.append(title);CARDS.filter(c=>state.owned.includes(c.id)).forEach(c=>{let level=state.levels[c.id]||1,need=level*4,fr=state.fragments[c.id]||0,price=100*level;let row=document.createElement('div');row.className='panel';row.style='display:flex;align-items:center;gap:12px;padding:9px;margin:10px 0';row.innerHTML=`<span class="hero-mini"><i class="fa-solid ${c.emoji}"></i></span><div style="flex:1"><b>${c.name}</b><div class="small">Nível ${level} · Fragmentos ${fr}/${need}</div></div>`;let b=document.createElement('button');b.className='btn blue';b.style='font-size:12px';b.textContent=price+' ●';b.onclick=()=>{if(fr<need)return toast('Faltam fragmentos');if(state.coins<price)return toast('Moedas insuficientes');state.coins-=price;state.fragments[c.id]-=need;state.levels[c.id]=level+1;save();renderShop();updateWallet();sound(950,.3)};row.append(b);el.append(row)})}function buyHero(c,price,currency){if(state[currency]<price)return toast('Saldo insuficiente');state[currency]-=price;state.owned.push(c.id);save();updateWallet();renderShop();sound(720,.24,'triangle',.08,390);toast('HERÓI DESBLOQUEADO: '+c.name)}function openChest(){if(state.coins<300)return toast('Moedas insuficientes');state.coins-=300;let c=CARDS[Math.floor(Math.random()*CARDS.length)];if(!state.owned.includes(c.id)){state.owned.push(c.id);window.chestMsg='Novo herói: '+c.name}else{state.fragments[c.id]=(state.fragments[c.id]||0)+5;window.chestMsg='+5 fragmentos: '+c.name}state.coins+=120;save();renderShop();updateWallet();sound(650,.3,'triangle',.08,500);toast(window.chestMsg+' e 120 moedas!')}function currentRealm(){return [...REALMS].reverse().find(r=>state.trophies>=r[3])||REALMS[0]}function renderRealms(){let el=document.getElementById('realmList');el.innerHTML='';REALMS.forEach(([emoji,name,desc,req],i)=>{let unlocked=state.trophies>=req;let row=document.createElement('div');row.className='panel realm '+(unlocked?'':'lock');row.innerHTML=`<span class="symbol"><i class="fa-solid ${emoji}"></i></span><div><b>REINO ${i+1} · ${name}</b><div class="small">${desc}</div><div class="badge">${unlocked?'✓ Desbloqueado':'Requer '+req+' de Axé'}</div></div>`;el.append(row)})}
-const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');let W=360,H=620,units=[],towers=[],particles=[],projectiles=[],energy=5,enemyEnergy=5,hand=[],drawPile=[],selected=-1,battleTime=180,lastTime=0,gameOn=false,animId=0,enemyAITimer=0,playerCrown=0,enemyCrown=0,ending=false;const rnd=(a,b)=>a+Math.random()*(b-a);function resize(){const r=canvas.getBoundingClientRect();W=r.width;H=r.height;let dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.floor(W*dpr);canvas.height=Math.floor(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)}window.addEventListener('resize',()=>{if(gameOn)resize()});function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}function makeTowers(){towers=[];for(let side of [0,1]){for(let lane of [0,1])towers.push({side,lane,x:W*(lane? .77:.23),y:H*(side?.82:.18),hp:1500,max:1500,range:W*.30,rate:1.2,cd:0,king:false,alive:true});towers.push({side,lane:2,x:W*.5,y:H*(side?.94:.06),hp:2600,max:2600,range:W*.34,rate:1.1,cd:0,king:true,alive:true})}}function startBattle(){show('battle');resize();units=[];particles=[];projectiles=[];energy=5;enemyEnergy=5;selected=-1;battleTime=180;lastTime=0;enemyAITimer=2;playerCrown=0;enemyCrown=0;ending=false;makeTowers();drawPile=shuffle(state.deck.slice());hand=drawPile.splice(0,4);gameOn=true;renderHand();sound(360,.4,'sawtooth',.06,280);cancelAnimationFrame(animId);animId=requestAnimationFrame(loop);toast('BATALHA NO '+currentRealm()[1].toUpperCase()+' • Invoque com Axé!')}function leaveBattle(){gameOn=false;cancelAnimationFrame(animId);show('lobby')}function renderHand(){let el=document.getElementById('hand');el.innerHTML='';hand.forEach((id,i)=>{let c=CARDS.find(x=>x.id===id);el.append(cardEl(c,()=>{selected=i;renderHand();sound(510,.08)},(selected===i?'selected ':'')+(c.cost>energy?'disabled':'')))});document.getElementById('energy').textContent=Math.floor(energy);document.getElementById('energyFill').style.width=(energy*10)+'%';document.getElementById('nextCard').textContent='Próxima invocação: '+(CARDS.find(c=>c.id===drawPile[0])?.name||'—')}
+const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');let W=360,H=620,units=[],towers=[],particles=[],projectiles=[],energy=5,enemyEnergy=5,hand=[],drawPile=[],selected=-1,battleTime=180,lastTime=0,gameOn=false,animId=0,enemyAITimer=0,playerCrown=0,enemyCrown=0,ending=false;const rnd=(a,b)=>a+Math.random()*(b-a);function resize(){const r=canvas.getBoundingClientRect();W=r.width;H=r.height;let dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.floor(W*dpr);canvas.height=Math.floor(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)}window.addEventListener('resize',()=>{if(gameOn)resize()});function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}function makeTowers(){towers=[];for(let side of [0,1]){for(let lane of [0,1])towers.push({side,lane,x:W*(lane? .77:.23),y:H*(side?.77:.23),hp:1500,max:1500,range:W*.165,rate:1.38,cd:0,king:false,alive:true});towers.push({side,lane:2,x:W*.5,y:H*(side?.885:.115),hp:2600,max:2600,range:W*.19,rate:1.3,cd:0,king:true,alive:true})}}function startBattle(){show('battle');resize();units=[];particles=[];projectiles=[];energy=5;enemyEnergy=5;selected=-1;battleTime=180;lastTime=0;enemyAITimer=2;playerCrown=0;enemyCrown=0;ending=false;makeTowers();drawPile=shuffle(state.deck.slice());hand=drawPile.splice(0,4);gameOn=true;renderHand();sound(360,.4,'sawtooth',.06,280);cancelAnimationFrame(animId);animId=requestAnimationFrame(loop);toast('BATALHA NO '+currentRealm()[1].toUpperCase()+' • Invoque com Axé!')}function leaveBattle(){gameOn=false;cancelAnimationFrame(animId);show('lobby')}function renderHand(){let el=document.getElementById('hand');el.innerHTML='';hand.forEach((id,i)=>{let c=CARDS.find(x=>x.id===id);el.append(cardEl(c,()=>{selected=i;renderHand();sound(510,.08)},(selected===i?'selected ':'')+(c.cost>energy?'disabled':'')))});document.getElementById('energy').textContent=Math.floor(energy);document.getElementById('energyFill').style.width=(energy*10)+'%';document.getElementById('nextCard').textContent='Próxima invocação: '+(CARDS.find(c=>c.id===drawPile[0])?.name||'—')}
 function spawn(card,side,x,y){if(card.type==='spell'){let targetY=y;for(let t of [...units,...towers]){if(t.side!==side&&t.alive!==false&&Math.hypot(t.x-x,t.y-targetY)<W*.18){t.hp-=card.dmg*(1+.12*((state.levels[card.id]||1)-1));if(t.hp<=0&&'alive'in t)destroyTower(t)}}burst(x,y,card.color,26);sound(150,.4,'sawtooth',.12,-110);return}let lane=x<W/2?0:1;let px=W*(lane?.77:.23);let level=side===1?(state.levels[card.id]||1):1;units.push({side,lane,x:px+rnd(-8,8),y,card,entry:['iemanja','marinheiro','mare'].includes(card.id)?1.35:0,attackPose:0,hp:card.hp*(1+.12*(level-1)),max:card.hp*(1+.12*(level-1)),dmg:card.dmg*(1+.12*(level-1)),cd:rnd(.1,.6),walk:rnd(0,7),flash:0});burst(px,y,card.color,9);sound(420,.12,'triangle',.06,210)}function destroyTower(t){if(!t.alive)return;t.alive=false;burst(t.x,t.y,t.side?'#5bd8ff':'#ff6985',36);sound(110,.65,'sawtooth',.14,-70);if(t.side===0)playerCrown++;else enemyCrown++;if(t.king)finish(t.side===0);document.getElementById('myCrowns').textContent=playerCrown;document.getElementById('enemyCrowns').textContent=enemyCrown}
 function burst(x,y,color,n){for(let i=0;i<n;i++)particles.push({x,y,vx:rnd(-85,85),vy:rnd(-90,90),life:rnd(.25,.8),max:.8,color,size:rnd(2,6)})}function shoot(a,b,damage,color){
  const id=a.card?.id||'';
@@ -67,7 +67,51 @@ function applyHeroAttack(u,t){
 
 function update(dt){battleTime-=dt;energy=Math.min(10,energy+dt*(battleTime<60? .82:.43));enemyEnergy=Math.min(10,enemyEnergy+dt*(battleTime<60?.82:.43));for(let u of units){if(u.dead)continue;u.walk+=dt*({surf:13,wind:17,stalk:10,march:7,heavy:5,slow:4,float:8,charge:14,stride:9}[fighterStyle(u).walk]||9);u.slowTimer=Math.max(0,(u.slowTimer||0)-dt);u.cd-=dt;u.entry=Math.max(0,(u.entry||0)-dt);u.attackPose=Math.max(0,(u.attackPose||0)-dt);u.flash=Math.max(0,u.flash-dt);let t=targetFor(u);if(!t)continue;let dx=t.x-u.x,dy=t.y-u.y,d=Math.hypot(dx,dy)||1;if(d>u.card.range*.63){let motion=fighterStyle(u).walk;let step=u.card.speed*dt*(u.entry>0?2.25:1)*(u.slowTimer>0?.5:1)*(motion==='wind'?1.17:motion==='heavy'?.82:motion==='slow'?.87:1);u.x+=dx/d*step;u.y+=dy/d*step}else if(u.cd<=0){u.cd=u.card.rate;u.attackPose=.32;if(u.card.type==='ranged')shoot(u,t,u.dmg,u.card.color);else{takeDamage(t,u.dmg);burst(t.x,t.y,u.card.color,4);if(u.card.id==='ogum'||u.card.id==='boiadeiro')burst(t.x,t.y,'#ffd28a',7)}applyHeroAttack(u,t);sound(u.card.type==='ranged'?620:170,.085,u.card.type==='ranged'?'sine':'square',.023,-100)}}for(let t of towers){if(!t.alive)continue;t.cd-=dt;if(t.cd>0)continue;let enemies=units.filter(u=>u.side!==t.side&&!u.dead&&Math.hypot(u.x-t.x,u.y-t.y)<t.range);if(enemies.length){enemies.sort((a,b)=>Math.hypot(a.x-t.x,a.y-t.y)-Math.hypot(b.x-t.x,b.y-t.y));shoot(t,enemies[0],t.king?90:70,t.side?'#6deaff':'#ff7386');t.cd=t.rate}}for(let p of projectiles){let t=p.target;if(t.dead||t.alive===false){p.dead=true;continue}let dx=t.x-p.x,dy=t.y-p.y,d=Math.hypot(dx,dy);if(d<p.speed*dt+7){takeDamage(t,p.damage);burst(t.x,t.y,p.color,5);p.dead=true;sound(360,.07,'triangle',.025,-180)}else{p.x+=dx/d*p.speed*dt;p.y+=dy/d*p.speed*dt}}projectiles=projectiles.filter(p=>!p.dead);units=units.filter(u=>!u.dead);for(let p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=100*dt;p.life-=dt}particles=particles.filter(p=>p.life>0);if(battleTime<=0)finish(playerCrown>enemyCrown||playerCrown===enemyCrown&&towers.filter(t=>t.side===0).reduce((a,b)=>a+b.hp,0)<towers.filter(t=>t.side===1).reduce((a,b)=>a+b.hp,0));document.getElementById('timer').textContent=Math.floor(Math.max(0,battleTime)/60)+':'+String(Math.floor(Math.max(0,battleTime)%60)).padStart(2,'0');renderHandState()}
 function renderHandState(){document.getElementById('energy').textContent=Math.floor(energy);document.getElementById('energyFill').style.width=(energy*10)+'%';document.querySelectorAll('#hand .card').forEach((e,i)=>e.classList.toggle('disabled',CARDS.find(c=>c.id===hand[i]).cost>energy))}
-function roundRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke()}}function draw(){ctx.clearRect(0,0,W,H);let grd=ctx.createLinearGradient(0,0,W,H);grd.addColorStop(0,realmPalette()[0]);grd.addColorStop(.5,realmPalette()[1]);grd.addColorStop(1,realmPalette()[2]);ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);let tile=W/12;for(let y=0;y<H;y+=tile)for(let x=0;x<W;x+=tile){ctx.fillStyle=(Math.floor(x/tile)+Math.floor(y/tile))%2?'#e4f9f709':'#03132226';ctx.fillRect(x,y,tile-1,tile-1)}for(let x of [W*.23,W*.77]){ctx.strokeStyle='#b3b6a255';ctx.lineWidth=W*.20;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}let riverY=H*.5,riverH=H*.105;ctx.fillStyle=realmPalette()[3];ctx.fillRect(0,riverY-riverH/2,W,riverH);for(let i=0;i<14;i++){let x=(i*41+performance.now()*.013)%W;ctx.strokeStyle=realmPalette()[4];ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,riverY+Math.sin(i*4)*riverH*.28,8,0,Math.PI);ctx.stroke()}for(let x of [W*.23,W*.77]){roundRect(x-W*.105,riverY-riverH*.55,W*.21,riverH*1.1,4,'#6e7783','#b7c6c7');for(let k=-1;k<=1;k++)roundRect(x+k*W*.052-2,riverY-riverH*.55,4,riverH*1.1,1,'#79512e')}ctx.fillStyle='#ff5e6633';ctx.fillRect(0,0,W,riverY-riverH*.55);ctx.fillStyle='#66caff22';ctx.fillRect(0,riverY+riverH*.55,W,H);for(let i=0;i<16;i++){let x=i%2?W-8:8,y=i*H/16;ctx.fillStyle=i%3?'#184f51':'#25535a';ctx.beginPath();ctx.arc(x,y,13+(i%4)*2,0,Math.PI*2);ctx.fill();ctx.fillStyle=realmPalette()[5];ctx.beginPath();ctx.arc(x-4,y-5,5,0,Math.PI*2);ctx.fill()}drawRealmDecor();for(let t of towers){if(!t.alive)continue;let r=t.king?W*.09:W*.075;ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(t.x,t.y+r*.6,r*1.2,r*.45,0,0,7);ctx.fill();roundRect(t.x-r,t.y-r,r*2,r*1.9,7,t.side?'#3277c4':'#9e344b',t.side?'#b5edff':'#ffb6b6');roundRect(t.x-r*.82,t.y-r*.9,r*1.64,r*.65,6,t.side?'#7ed6fc':'#fda1a1','#fff9');ctx.font=`${r*.9}px serif`;ctx.textAlign='center';drawSanctuary(t,r);drawHP(t.x,t.y-r*1.35,r*2,t.hp/t.max,t.side);ctx.save();ctx.textAlign='center';ctx.font='900 '+Math.max(12,W*.035)+'px system-ui';ctx.lineWidth=3;ctx.strokeStyle='#04131f';ctx.strokeText(Math.max(0,Math.ceil(t.hp))+' / '+t.max,t.x,t.y-r*1.35-8);ctx.fillStyle='#ffffff';ctx.fillText(Math.max(0,Math.ceil(t.hp))+' / '+t.max,t.x,t.y-r*1.35-8);ctx.restore()}for(let u of units){let r=Math.max(18,W*.060);ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(u.x,u.y+r*.5,r,r*.38,0,0,7);ctx.fill();ctx.beginPath();ctx.strokeStyle=u.side?'#46c5f999':'#e8526999';ctx.lineWidth=1.5;ctx.ellipse(u.x,u.y+r*.48,r*.47,r*.14,0,0,7);ctx.stroke();ctx.save();ctx.translate(u.x,u.y+Math.sin(u.walk)*1.5);drawFighter(u,r);ctx.restore();drawHP(u.x,u.y-r-11,r*2.5,u.hp/u.max,u.side)}for(let p of projectiles){drawPowerProjectile(p)}for(let p of particles){ctx.globalAlpha=Math.min(1,p.life*2);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,7);ctx.fill()}ctx.globalAlpha=1;if(selected>=0){drawDeployZone()}}function drawHP(x,y,w,f,side){roundRect(x-w/2,y,w,5,2,'#0d1527');roundRect(x-w/2,y,Math.max(0,w*f),5,2,side?'#60d7ff':'#ff6487')}
+function roundRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke()}}function drawAxeArena(){
+ const realm=Math.max(0,Math.min(6,typeof chosenRealm==='number'?chosenRealm:0));
+ const themes=[['#102c32','#3c6865','#a4d9ca'],['#152e22','#527456','#b5d6a0'],['#282e31','#7b7770','#e6ca92'],['#382920','#8a654b','#e8b68a'],['#30343c','#939da0','#f1e7c8'],['#30243d','#816d91','#dcc4ec'],['#1d293b','#657f99','#d7e4f4']];
+ const [shadow,stone,glow]=themes[realm],time=performance.now()*.001;
+ // Chão texturizado e iluminação volumétrica: arena em perspectiva isométrica 2.5D.
+ const floor=ctx.createLinearGradient(0,0,W,H);floor.addColorStop(0,shadow);floor.addColorStop(.52,stone);floor.addColorStop(1,shadow);ctx.fillStyle=floor;ctx.fillRect(0,0,W,H);
+ let vignette=ctx.createRadialGradient(W*.5,H*.48,W*.12,W*.5,H*.48,H*.76);vignette.addColorStop(0,'#ffffff12');vignette.addColorStop(1,'#00000099');ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
+ // Lajes irregulares desenhadas de forma determinística, sem grade de tabuleiro.
+ for(let i=0;i<150;i++){
+   let x=((i*127.71)%997)/997*W,y=((i*311.37)%991)/991*H;
+   let w=W*(.025+((i*17)%13)*.003),h=H*(.009+((i*23)%11)*.0012);
+   ctx.beginPath();ctx.moveTo(x-w*.55,y);ctx.lineTo(x-w*.18,y-h);ctx.lineTo(x+w*.55,y-h*.55);ctx.lineTo(x+w*.65,y+h*.45);ctx.lineTo(x-w*.24,y+h*.72);ctx.closePath();
+   ctx.fillStyle=i%4===0?'#d7e3d00e':'#020a111b';ctx.fill();ctx.strokeStyle=i%3===0?'#e3ddbc13':'#00000026';ctx.lineWidth=.8;ctx.stroke();
+ }
+ // Anel de pedra elevado: sombra projetada, parede lateral e superfície elíptica.
+ ctx.save();ctx.translate(W*.5,H*.5);
+ for(let j=12;j>=0;j--){ctx.beginPath();ctx.ellipse(0,j*.9,W*.475,H*.405,0,0,Math.PI*2);ctx.fillStyle=j>4?'#09171ba0':'#101b2299';ctx.fill()}
+ let ring=ctx.createLinearGradient(-W*.4,-H*.35,W*.42,H*.35);ring.addColorStop(0,'#c9bd9b');ring.addColorStop(.3,stone);ring.addColorStop(.75,shadow);ring.addColorStop(1,'#d6c4a1');
+ ctx.beginPath();ctx.ellipse(0,-5,W*.475,H*.405,0,0,Math.PI*2);ctx.fillStyle=ring;ctx.fill();ctx.strokeStyle='#e3d0a071';ctx.lineWidth=3;ctx.stroke();
+ ctx.beginPath();ctx.ellipse(0,-5,W*.435,H*.369,0,0,Math.PI*2);ctx.fillStyle='#0d1a20c4';ctx.fill();ctx.strokeStyle=glow+'78';ctx.lineWidth=1.5;ctx.stroke();
+ // Estratos de pedra na circunferência, relevos e fendas.
+ for(let i=0;i<36;i++){let a=i*Math.PI/18;ctx.beginPath();ctx.moveTo(Math.cos(a)*W*.435,Math.sin(a)*H*.369-5);ctx.lineTo(Math.cos(a)*W*.473,Math.sin(a)*H*.405-5);ctx.strokeStyle=i%3?'#0a141e85':'#fff1cc47';ctx.lineWidth=1.5;ctx.stroke()}
+ ctx.restore();
+ // Duas passagens de pedra com bordas em relevo, em vez de pontes.
+ for(let lane=0;lane<2;lane++){
+  const x=W*(lane?.77:.23),bw=W*.165;
+  ctx.beginPath();ctx.moveTo(x-bw*.5,0);ctx.bezierCurveTo(x-bw*.7,H*.3,x-bw*.7,H*.7,x-bw*.5,H);ctx.lineTo(x+bw*.5,H);ctx.bezierCurveTo(x+bw*.7,H*.7,x+bw*.7,H*.3,x+bw*.5,0);ctx.closePath();
+  let path=ctx.createLinearGradient(x-bw,0,x+bw,0);path.addColorStop(0,'#091719');path.addColorStop(.18,stone);path.addColorStop(.5,'#aaab9688');path.addColorStop(.82,stone);path.addColorStop(1,'#091719');ctx.fillStyle=path;ctx.fill();
+  ctx.strokeStyle=glow+'44';ctx.lineWidth=1.5;ctx.stroke();
+  for(let k=0;k<23;k++){let y=k*H/22;ctx.beginPath();ctx.moveTo(x-bw*.43,y);ctx.lineTo(x+bw*.43,y+Math.sin(k*2)*2);ctx.strokeStyle=k%3?'#00000024':'#ffffff20';ctx.lineWidth=1;ctx.stroke()}
+ }
+ // Selo central com aro de metal, sombra, brilho e inscrição original.
+ ctx.save();ctx.translate(W*.5,H*.5);ctx.shadowColor='#000';ctx.shadowBlur=18;ctx.shadowOffsetY=9;ctx.fillStyle='#111a20';ctx.beginPath();ctx.ellipse(0,0,W*.13,W*.092,0,0,7);ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+ let seal=ctx.createRadialGradient(-8,-8,1,0,0,W*.12);seal.addColorStop(0,'#8d8c7a');seal.addColorStop(.7,'#303b3c');seal.addColorStop(1,'#111b21');ctx.fillStyle=seal;ctx.beginPath();ctx.ellipse(0,-5,W*.12,W*.087,0,0,7);ctx.fill();ctx.strokeStyle=glow;ctx.lineWidth=2.5;ctx.stroke();
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`bold ${Math.max(17,W*.055)}px Georgia`;ctx.fillStyle=glow;ctx.shadowColor=glow;ctx.shadowBlur=8+Math.sin(time*2)*3;ctx.fillText('✦',0,-7);ctx.restore();
+ // Luminárias rituais laterais com pedestal e chamas discretas.
+ for(let i=0;i<12;i++){let x=i%2?W*.965:W*.035,y=H*(.11+Math.floor(i/2)*.155),f=.75+Math.sin(time*3+i)*.2;
+  ctx.fillStyle='#0009';ctx.beginPath();ctx.ellipse(x+3,y+9,11,5,0,0,7);ctx.fill();ctx.fillStyle='#192326';ctx.fillRect(x-5,y-1,10,13);ctx.fillStyle='#ad9673';ctx.fillRect(x-7,y-3,14,4);
+  ctx.save();ctx.globalAlpha=f;ctx.shadowColor=glow;ctx.shadowBlur=14;ctx.fillStyle=glow;ctx.beginPath();ctx.ellipse(x,y-8,2.5,6,0,0,7);ctx.fill();ctx.restore();
+ }
+ // Divisão territorial: luz no piso, sem barreira física.
+ ctx.save();ctx.strokeStyle=glow+'48';ctx.lineWidth=2;ctx.setLineDash([4,10]);ctx.beginPath();ctx.moveTo(W*.06,H*.5);ctx.lineTo(W*.94,H*.5);ctx.stroke();ctx.restore();
+}
+
+function draw(){ctx.clearRect(0,0,W,H);drawAxeArena();for(let t of towers){if(!t.alive)continue;let r=t.king?W*.09:W*.075;ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(t.x,t.y+r*.6,r*1.2,r*.45,0,0,7);ctx.fill();roundRect(t.x-r,t.y-r,r*2,r*1.9,7,t.side?'#3277c4':'#9e344b',t.side?'#b5edff':'#ffb6b6');roundRect(t.x-r*.82,t.y-r*.9,r*1.64,r*.65,6,t.side?'#7ed6fc':'#fda1a1','#fff9');ctx.font=`${r*.9}px serif`;ctx.textAlign='center';drawSanctuary(t,r);drawHP(t.x,t.y-r*1.35,r*2,t.hp/t.max,t.side);ctx.save();ctx.textAlign='center';ctx.font='900 '+Math.max(12,W*.035)+'px system-ui';ctx.lineWidth=3;ctx.strokeStyle='#04131f';ctx.strokeText(Math.max(0,Math.ceil(t.hp))+' / '+t.max,t.x,t.y-r*1.35-8);ctx.fillStyle='#ffffff';ctx.fillText(Math.max(0,Math.ceil(t.hp))+' / '+t.max,t.x,t.y-r*1.35-8);ctx.restore()}for(let u of units){let r=Math.max(18,W*.060);ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(u.x,u.y+r*.5,r,r*.38,0,0,7);ctx.fill();ctx.beginPath();ctx.strokeStyle=u.side?'#46c5f999':'#e8526999';ctx.lineWidth=1.5;ctx.ellipse(u.x,u.y+r*.48,r*.47,r*.14,0,0,7);ctx.stroke();ctx.save();ctx.translate(u.x,u.y+Math.sin(u.walk)*1.5);drawFighter(u,r);ctx.restore();drawHP(u.x,u.y-r-11,r*2.5,u.hp/u.max,u.side)}for(let p of projectiles){drawPowerProjectile(p)}for(let p of particles){ctx.globalAlpha=Math.min(1,p.life*2);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,7);ctx.fill()}ctx.globalAlpha=1;if(selected>=0){drawDeployZone()}}function drawHP(x,y,w,f,side){roundRect(x-w/2,y,w,5,2,'#0d1527');roundRect(x-w/2,y,Math.max(0,w*f),5,2,side?'#60d7ff':'#ff6487')}
 function loop(ts){if(!gameOn)return;let dt=Math.min((ts-lastTime)/1000||0,.04);lastTime=ts;update(dt);draw();if(gameOn)animId=requestAnimationFrame(loop)}canvas.addEventListener('pointerdown',e=>{if(!gameOn||selected<0)return;let c=CARDS.find(x=>x.id===hand[selected]);if(c.cost>energy)return toast('Axé insuficiente!');let r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*W,y=(e.clientY-r.top)/r.height*H;if(c.type!=='spell'&&!canDeployHere(1,x,y))return toast('Destrua a torre inimiga desta rota para avançar!');energy-=c.cost;spawn(c,1,x,y);hand[selected]=drawPile.shift();drawPile.push(c.id);selected=-1;renderHand()});function finish(win){if(ending)return;ending=true;gameOn=false;cancelAnimationFrame(animId);if(win){state.trophies+=30;state.coins+=150;if(Math.random()<.38){let locked=CARDS.filter(c=>!state.owned.includes(c.id));if(locked.length){let prize=locked[Math.floor(Math.random()*locked.length)];state.owned.push(prize.id);window.lastHeroPrize=prize.name}else{let prize=CARDS[Math.floor(Math.random()*CARDS.length)];state.fragments[prize.id]=(state.fragments[prize.id]||0)+3;window.lastHeroPrize='3 fragmentos de '+prize.name}}else window.lastHeroPrize='';sound(520,.3,'triangle',.09,450)}else{state.trophies=Math.max(0,state.trophies-10);state.coins+=40;sound(220,.4,'sawtooth',.08,-160)}save();document.getElementById('resultIcon').innerHTML=win?'<i class="fa-solid fa-trophy"></i>':'<i class="fa-solid fa-shield-halved"></i>';document.getElementById('resultTitle').textContent=win?'VITÓRIA!':'DERROTA';document.getElementById('resultText').textContent=win?'Você conquistou +30 de Axé de ranking e 150 moedas!'+(window.lastHeroPrize?' Herói ou prêmio: '+window.lastHeroPrize:''):'Você recebeu 40 moedas. Seu Axé de ranking diminuiu em 10.';document.getElementById('result').classList.add('show')}
 updateWallet();renderRealms();
 
@@ -652,7 +696,7 @@ cardEl=function(c,click,extra=''){
 };
 
 
-;
+
 
 (function(){
 'use strict';
@@ -768,7 +812,7 @@ startBattle=function(){
 updateWallet();
 })();
 
-;
+
 
 (function(){'use strict';
 const imgMap={jurema:'https://i.ibb.co/jvVnjtYQ/Xam-Tribal-da-Magia-Verde.png',tereza:'https://i.ibb.co/M5Rn08tq/Vaqueira-guerreira-sobre-touro-em-a-o.png',iara:'https://i.ibb.co/5X4JwGmb/Sereia-Guerreira-em-F-ria-Aqu-tica.png',mata:'https://i.ibb.co/cKZrtTx5/On-a-tribal-em-ataque-feroz.png',pai:'https://i.ibb.co/vxX1pWKT/Anci-o-Xam-com-Cajado-e-Fuma-a-removebg-preview.png',figueira:'https://i.ibb.co/spXzYFpT/Feiticeira-Tribal-da-Energia-Rubra-removebg-preview.png',tiriri:'https://i.ibb.co/tMy8YtTZ/Guerreiro-Xam-das-Correntes-Rubras-removebg-preview.png',marinheiro:'https://i.ibb.co/sdHFD1xd/Guerreiro-do-Mar-com-ncora-e-Sabre-removebg-preview.png'};
@@ -807,7 +851,7 @@ const shopTitle=document.querySelector('#shop .topbar .title');if(shopTitle)shop
 axeV19Render();updateWallet();
 })();
 
-;
+
 
 (function(){'use strict';
 const heroes=[
@@ -820,7 +864,7 @@ const heroes=[
 {id:'tiriri',name:'Tiriri',emoji:'fa-link',cost:4,hp:610,dmg:89,range:30,speed:39,rate:1.18,type:'melee',rarity:'epic',color:'#f06e78',role:'Guerreiro de controle',walk:'stride',attack:'cleave',ability:'Correntes rubras',desc:'Golpeia com correntes e imobiliza brevemente um alvo a cada 4 segundos.',url:'https://i.ibb.co/tMy8YtTZ/Guerreiro-Xam-das-Correntes-Rubras-removebg-preview.png'},
 {id:'marinheiro',name:'João do Mar',emoji:'fa-anchor',cost:3,hp:610,dmg:71,range:28,speed:32,rate:1.25,type:'melee',rarity:'',color:'#78cfe9',role:'Guerreiro',walk:'surf',attack:'strike',ability:'Âncora e sabre',desc:'Combate próximo; o primeiro golpe empurra levemente o alvo.',url:'https://i.ibb.co/sdHFD1xd/Guerreiro-do-Mar-com-ncora-e-Sabre-removebg-preview.png'}
 ];
-const ids=new Set(heroes.map(h=>h.id));
+const ids=new Set([...heroes.map(h=>h.id),'rompe','flechas','boiadeiro','pedrinho','almas','baiana','tranca','padilha','mironga','dende','brasa']);
 CARDS.splice(0,CARDS.length);
 for(const h of heroes){const {url,role,walk,attack,ability,desc,...card}=h;CARDS.push(card);ART_HEROES[h.id]={url,name:h.name,role,kind:h.id==='iara'?'water':h.id==='mata'?'beast':'warrior'};HERO_STYLES[h.id]={walk,attack,ability,desc};const im=new Image();im.referrerPolicy='no-referrer';im.src=url;heroImages[h.id]=im}
 // Uma corrente com 8 personagens para testar as funções. Todos os personagens antigos saem do acervo.
@@ -884,7 +928,7 @@ const oldCollection=renderCollection;renderCollection=function(){oldCollection()
 updateWallet();renderCollection();
 })();
 
-;
+
 
 (function(){'use strict';
 // Ataques físicos recebem impacto, recuo e animação sem substituir o sistema de progressão.
@@ -913,7 +957,7 @@ const prevTarget=targetFor;targetFor=function(u){if(u?.card?.id==='jurema'){cons
 const prevShoot=shoot;shoot=function(a,b,damage,color){if(a.card?.id==='jurema'&&b.side===a.side){b.hp=Math.min(b.max,b.hp+Math.max(24,damage));fx(b.x,b.y,'#86e9ac',30,'heal');popup(b.x,b.y-23,'+'+Math.ceil(Math.max(24,damage)),'#a7ffc3');return}prevShoot(a,b,damage,color)};
 })();
 
-;
+
 
 (function(){'use strict';
 const magic=[];let clock=0;
@@ -962,7 +1006,7 @@ draw=function(){oldDraw();ctx.save();for(const m of magic){const age=m.max-m.lif
 const previousCollection=renderCollection;renderCollection=function(){previousCollection();};
 })();
 
-;
+
 
 (function(){'use strict';
 const LOGO='https://i.ibb.co/jkCGhXcz/Emblema-Dourado-Reinos-do-Ax.png';
@@ -1024,7 +1068,7 @@ update=function(dt){
  // Impede o bot antigo de invocar cartas aleatórias e dá o mesmo carregamento de Axé aos dois lados.
  oldUpdate(dt);
  aiTime-=dt;
- if(gameOn&&aiTime<=0){aiDecision();aiTime=(aiDifficulty===1?2.7:aiDifficulty===2?2.1:1.6)+Math.random()*.7}
+ if(false&&gameOn&&aiTime<=0){aiDecision();aiTime=2.7}
  fxClock+=dt;
  for(const u of units){
   u.ropeCooldown=Math.max(0,(u.ropeCooldown||0)-dt);
@@ -1097,7 +1141,7 @@ const oldRenderCollection=renderCollection;renderCollection=function(){oldRender
 updateWallet();
 })();
 
-;
+
 
 (function(){
 const logo='https://i.ibb.co/jkCGhXcz/Emblema-Dourado-Reinos-do-Ax.png';
@@ -1108,3 +1152,313 @@ if(HERO_STYLES.iara){HERO_STYLES.iara.attack='waterdash';HERO_STYLES.iara.abilit
 if(typeof renderHand==='function'&&document.getElementById('battle').classList.contains('active'))renderHand();
 })();
 
+
+
+(function(){'use strict';
+const additions=[
+{id:'rompe',name:'Rompe Mato',emoji:'fa-khanda',cost:4,hp:630,dmg:108,range:29,speed:40,rate:1.28,type:'melee',rarity:'epic',color:'#7edc82',role:'Investida e espada',walk:'charge',attack:'cleave',ability:'Lançada e corte',desc:'Avança com a espada e executa um corte que atinge inimigos próximos.',url:'https://i.ibb.co/q3wW1H72/Guerreiro-Caboclo-Rompe-Mato-em-A-o.png'},
+{id:'flechas',name:'Sete Flechas',emoji:'fa-bullseye',cost:4,hp:310,dmg:23,range:142,speed:34,rate:2.4,type:'ranged',rarity:'epic',color:'#60baff',role:'Arqueiro múltiplo',walk:'stalk',attack:'seven',ability:'Tiro das sete flechas',desc:'Dispara uma salva de sete flechas azuis que se distribuem entre os alvos.',url:'https://i.ibb.co/n8gWHYzt/Guerreiro-Arqueiro-Tribal-de-Energia-Azul.png'},
+{id:'boiadeiro',name:'Boiadeiro Sete Laços',emoji:'fa-hat-cowboy',cost:5,hp:900,dmg:94,range:31,speed:38,rate:1.35,type:'melee',rarity:'epic',color:'#d8ae76',role:'Boiada',walk:'charge',attack:'cleave',ability:'Estouro da boiada',desc:'Avança com os bois levantando poeira e empurra inimigos com a investida.',url:'https://i.ibb.co/MyrZ6DDx/Vaqueiro-em-Cavalgada-Triunfal-removebg-preview.png'},
+{id:'pedrinho',name:'Erê Pedrinho',emoji:'fa-child-reaching',cost:3,hp:290,dmg:39,range:98,speed:57,rate:1.55,type:'ranged',rarity:'',color:'#ffe37d',role:'Distração',walk:'hop',attack:'trick',ability:'Travessura',desc:'Caminha saltitando, espalha piões brilhantes e distrai inimigos.',url:'https://i.ibb.co/fzxnbZHY/Menino-Travesso-em-Salto-M-gico.png'},
+{id:'almas',name:'Almas Benditas',emoji:'fa-ghost',cost:4,hp:205,dmg:29,range:100,speed:34,rate:1.55,type:'ranged',rarity:'epic',color:'#80d7ff',role:'Enxame espiritual',walk:'float',attack:'miasma',ability:'Miasmas em conjunto',desc:'Invoca três almas que avançam juntas e expelem miasmas.',url:'https://i.ibb.co/mC6bj0KV/Espectros-Azuis-em-F-ria.png'},
+{id:'baiana',name:'Baiana',emoji:'fa-wind',cost:4,hp:520,dmg:67,range:36,speed:30,rate:1.5,type:'melee',rarity:'epic',color:'#e4d8a0',role:'Controle de área',walk:'spin',attack:'gust',ability:'Giro de saia',desc:'Gira a saia e cria ventos que afastam inimigos próximos.',url:'https://i.ibb.co/NdZxS32S/Sacerdotisa-Afro-Brasileira-em-Invoca-o.png'},
+{id:'tranca',name:'Exu Tranca-Ruas',emoji:'fa-key',cost:4,hp:750,dmg:77,range:29,speed:32,rate:1.38,type:'melee',rarity:'epic',color:'#ee5367',role:'Defesa',walk:'mist',attack:'curse',ability:'Névoa da encruzilhada',desc:'Flutua sobre neblina vermelha, resiste a ataques e desacelera inimigos.',url:'https://i.ibb.co/j9K0BJPQ/Guardi-o-Tranca-Ruas-em-F-ria-Crimson.png'},
+{id:'padilha',name:'Maria Padilha',emoji:'fa-fan',cost:4,hp:390,dmg:67,range:112,speed:33,rate:1.42,type:'ranged',rarity:'legend',color:'#ff688e',role:'Rosas encantadas',walk:'mist',attack:'roses',ability:'Redemoinho de rosas',desc:'Flutua em neblina vermelha e lança rosas encantadas que atingem inimigos próximos.',url:'https://i.ibb.co/xSHMJdMz/Feiticeira-das-Rosas-em-Movimento.png'},
+{id:'mironga',name:'Pó de Mironga',emoji:'fa-mortar-pestle',cost:3,hp:0,dmg:0,range:0,speed:0,rate:0,type:'spell',rarity:'epic',color:'#a4a0f4',role:'Magia de controle',walk:'',attack:'',ability:'Lentidão',desc:'Reduz a velocidade de movimento dos inimigos em uma área por 4 segundos.',url:'https://i.ibb.co/3y9zSqXD/Caldeir-o-M-stico-de-P-de-Mironga.png'},
+{id:'dende',name:'Dendê',emoji:'fa-flask',cost:3,hp:0,dmg:0,range:0,speed:0,rate:0,type:'spell',rarity:'epic',color:'#ffad35',role:'Magia de apoio',walk:'',attack:'',ability:'Agilidade do dendê',desc:'Aumenta a velocidade de ataque das tropas aliadas em uma área por 5 segundos.',url:'https://i.ibb.co/dwRsvCZ7/Po-o-Dourada-em-Espiral-M-gica.png'},
+{id:'brasa',name:'Caldeirão de Brasa',emoji:'fa-fire',cost:4,hp:0,dmg:80,range:0,speed:0,rate:0,type:'spell',rarity:'epic',color:'#ff793e',role:'Magia de dano',walk:'',attack:'',ability:'Brasa de fogo',desc:'Causa dano em área e deixa brasas que queimam inimigos por 4 segundos.',url:'https://i.ibb.co/5hrszHGX/Caldeir-o-Ancestral-em-Chamas.png'}
+];
+for(const h of additions){const {url,role,walk,attack,ability,desc,...card}=h;const i=CARDS.findIndex(c=>c.id===h.id);if(i>=0)CARDS[i]=card;else CARDS.push(card);ART_HEROES[h.id]={url,name:h.name,role,kind:h.type==='spell'?'spell':'warrior'};HERO_STYLES[h.id]={walk,attack,ability,desc};const img=new Image();img.src=url;heroImages[h.id]=img}
+const allIds=new Set(CARDS.map(c=>c.id));state.owned=[...allIds];
+const originalEight=['jurema','tereza','iara','mata','pai','figueira','tiriri','marinheiro'];
+const priorDeck=Array.isArray(state.deck)?state.deck.filter(id=>allIds.has(id)):[];
+state.deck=[...new Set([...priorDeck,...originalEight])].slice(0,8);
+if(state.deck.length<8)state.deck=[...new Set([...state.deck,...CARDS.map(c=>c.id)])].slice(0,8);
+state.decks=Array.from({length:5},(_,i)=>{const d=(state.decks?.[i]||[]).filter(id=>allIds.has(id));return [...new Set([...d,...state.deck])].slice(0,8)});
+state.decks[0]=state.deck.slice();save();
+const spellZones=[];
+const previousSpawn=spawn;
+spawn=function(card,side,x,y){
+ if(['mironga','dende','brasa'].includes(card?.id)){
+  const radius=W*.23,duration=card.id==='dende'?5:4;
+  spellZones.push({id:card.id,side,x,y,radius,time:duration,max:duration,tick:0});
+  burst(x,y,card.color,32);sound(490,.25,'triangle',.08);return;
+ }
+ const before=units.length;previousSpawn(card,side,x,y);
+ if(card?.id==='almas'&&units.length>before){const main=units[units.length-1];for(let i=0;i<2;i++){const copy={...main,x:main.x+(i?19:-19),y:main.y+(i?12:-12),walk:rnd(0,7),cd:rnd(.3,.9),hp:main.hp,max:main.max};units.push(copy)}burst(main.x,main.y,'#8bdcff',16)}
+};
+const previousAttack=applyHeroAttack;
+applyHeroAttack=function(u,t){
+ const id=u.card.id;
+ if(id==='flechas'){const candidates=[t,...units.filter(v=>v.side!==u.side&&!v.dead&&v!==t&&Math.hypot(v.x-u.x,v.y-u.y)<W*.48)];for(let i=0;i<6;i++){const dest=candidates[i%candidates.length];shoot(u,dest,u.dmg,'#66c6ff')}burst(u.x,u.y,'#62baff',14);return}
+ if(id==='rompe'){units.filter(v=>v.side!==u.side&&!v.dead&&v!==t&&Math.hypot(v.x-t.x,v.y-t.y)<W*.13).slice(0,2).forEach(v=>takeDamage(v,u.dmg*.48));burst(t.x,t.y,'#9aff93',13);return}
+ if(id==='boiadeiro'){if(t.card){t.y+=u.side===1?-W*.055:W*.055}burst(u.x,u.y,'#caa579',13);return}
+ if(id==='pedrinho'){if(t.card){t.slowTimer=Math.max(t.slowTimer||0,1.5);t.cd=Math.max(t.cd||0,.5)}burst(t.x,t.y,'#ffe46d',10);return}
+ if(id==='almas'){t.slowTimer=Math.max(t.slowTimer||0,.65);burst(t.x,t.y,'#88c7fa',9);return}
+ if(id==='baiana'){for(const v of units.filter(v=>v.side!==u.side&&!v.dead&&Math.hypot(v.x-u.x,v.y-u.y)<W*.16)){if(v!==t)takeDamage(v,u.dmg*.3);v.y+=u.side===1?-W*.06:W*.06}burst(u.x,u.y,'#fff2c2',18);return}
+ if(id==='tranca'){t.slowTimer=Math.max(t.slowTimer||0,1.8);burst(t.x,t.y,'#f14a65',8);return}
+ if(id==='padilha'){units.filter(v=>v.side!==u.side&&!v.dead&&v!==t&&Math.hypot(v.x-t.x,v.y-t.y)<W*.13).slice(0,2).forEach(v=>takeDamage(v,u.dmg*.36));burst(t.x,t.y,'#ff5c91',14);return}
+ previousAttack(u,t);
+};
+const previousUpdate=update;
+update=function(dt){
+ for(let i=spellZones.length-1;i>=0;i--){const z=spellZones[i];z.time-=dt;z.tick+=dt;
+  for(const u of units){if(u.dead||Math.hypot(u.x-z.x,u.y-z.y)>z.radius)continue;
+   if(z.id==='mironga'&&u.side!==z.side)u.slowTimer=Math.max(u.slowTimer||0,.35);
+   if(z.id==='dende'&&u.side===z.side)u.dendeBoost=Math.max(u.dendeBoost||0,.28);
+   if(z.id==='brasa'&&u.side!==z.side)u.burn=Math.max(u.burn||0,.3);
+  }
+  if(z.id==='brasa'&&z.tick>=.5){z.tick=0;for(const t of [...units,...towers])if(t.side!==z.side&&!t.dead&&t.alive!==false&&Math.hypot(t.x-z.x,t.y-z.y)<z.radius)takeDamage(t,14)}
+  if(z.time<=0)spellZones.splice(i,1);
+ }
+ const boosted=[];for(const u of units){if(u.dendeBoost>0){u.dendeBoost-=dt;boosted.push([u,u.card.rate]);u.card.rate*=.72}}
+ try{previousUpdate(dt)}finally{for(const [u,rate] of boosted)u.card.rate=rate}
+};
+const previousDraw=draw;
+draw=function(){previousDraw();ctx.save();for(const z of spellZones){const alpha=Math.min(.5,z.time/z.max*.5);ctx.globalAlpha=alpha;const colors={mironga:'#a2a1f6',dende:'#ffad2f',brasa:'#ff4e23'};ctx.fillStyle=colors[z.id];ctx.strokeStyle=colors[z.id];ctx.lineWidth=3;ctx.beginPath();ctx.arc(z.x,z.y,z.radius,0,Math.PI*2);ctx.fill();ctx.stroke();for(let k=0;k<9;k++){const a=k*6.283/9+performance.now()*.001;ctx.beginPath();ctx.arc(z.x+Math.cos(a)*z.radius*.75,z.y+Math.sin(a)*z.radius*.75,3,0,7);ctx.fill()}}ctx.restore()};
+const previousFighter=drawFighter;
+drawFighter=function(u,r){const id=u.card.id,t=performance.now()*.001;
+ ctx.save();if(id==='pedrinho')ctx.translate(0,-Math.abs(Math.sin(t*8+u.walk))*r*.35);
+ if(id==='baiana'){
+  // Passos de dança com balanço lateral; giro completo apenas no ataque.
+  const step=Math.sin(u.walk*.65);
+  ctx.translate(step*r*.13,-Math.abs(Math.sin(u.walk*.42))*r*.075);
+  ctx.rotate((u.attackPose>0 ? Math.sin((.32-u.attackPose)*15)*.48 : Math.sin(u.walk*.42)*.065));
+  ctx.strokeStyle='#e7e1c4aa';ctx.lineWidth=2;
+  for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(0,r*.38,r*(.8+i*.22),Math.PI*.1+t*.35,Math.PI*.85+t*.35);ctx.stroke()}
+ }
+ if(id==='tranca'){
+  // Flutuação lenta, imponente, sem passadas nem tremedeira.
+  ctx.translate(0,-r*.16-Math.sin(t*2.1+u.walk*.13)*r*.12);
+  ctx.rotate(Math.sin(t*1.2)*.018);
+ }
+ if(id==='tranca'||id==='padilha'){
+  ctx.fillStyle=id==='tranca'?'#a8194760':'#ff457766';
+  for(let i=0;i<6;i++){
+   const drift=Math.sin(t*(id==='tranca'?1.35:2.2)+i*1.3);
+   ctx.beginPath();ctx.ellipse(drift*r*(.4+i*.15),r*(.7+i*.11)+Math.cos(t*1.6+i)*r*.11,r*(.55+i*.1),r*.17,0,0,Math.PI*2);ctx.fill();
+  }
+ }
+ if(id==='boiadeiro'){
+  // Nuvem de poeira e cascalho acompanhando a cavalgada.
+  for(let i=0;i<13;i++){
+   const phase=t*2.7+i*2.399,spread=(i%5+1)*r*.28;
+   ctx.fillStyle=i%3===0?'#e0bb8655':i%3===1?'#a27c5266':'#c9a77b55';
+   ctx.beginPath();ctx.arc(Math.sin(phase)*spread,r*(.6+i%4*.18)+Math.cos(phase*.8)*r*.18,r*(.10+(i%4)*.06),0,Math.PI*2);ctx.fill();
+  }
+ }
+ previousFighter(u,r);ctx.restore()};
+const previousStart=startBattle;startBattle=function(){spellZones.length=0;previousStart()};
+const previousLeave=leaveBattle;leaveBattle=function(){spellZones.length=0;previousLeave()};
+renderCollection();updateWallet();
+})();
+
+
+
+(function(){'use strict';
+const names=['LuaDoDende','SeteEncruzas','CabocloVento','FlorDeJurema','AxéViajante','RosaDoOriente','FilhoDaMata','EstrelaDaGuia','PedraDeFogo','BrisaDaSerra','MaréDeOuro','FlechaSagrada','CruzeiroVivo','VentoDeIansã','RaizDoAxé','ChamaAncestral','BoiadaLivre','MestreDaLua','SolDeArimateia','GiraDaNoite','ArcoDoDestino','GuardaDasOndas'];
+let profile=null,skill=0,style='balanced',aiDeck=[];
+const prevStart=startBattle;
+startBattle=function(){
+ const realm=Math.max(0,Math.min(6,typeof chosenRealm==='number'?chosenRealm:0));
+ const seed=Math.floor(Math.random()*10000),name=names[Math.floor(Math.random()*names.length)]+(10+seed%89);
+ skill=Math.max(0,Math.min(1,realm*.145+Math.min(.12,state.trophies/12000)));
+ style=['defender','aggressive','counter','balanced'][Math.floor(Math.random()*4)];
+ const realmCards=CARDS.filter(c=>c.type!=='spell');
+ const order=realmCards.map(c=>({c,score:Math.random()*3+(c.type==='ranged'?1:0)+(style==='defender'&&c.hp>500?2:0)+(style==='aggressive'&&c.speed>35?2:0)+(style==='counter'&&c.range>90?2:0)})).sort((a,b)=>b.score-a.score);
+ aiDeck=order.slice(0,Math.min(8,order.length)).map(v=>v.c.id);
+ const spells=CARDS.filter(c=>c.type==='spell');if(spells.length&&aiDeck.length>=7)aiDeck[7]=spells[seed%spells.length].id;
+ profile={name,realm,style,rank:Math.max(1,realm*4+1+seed%4),deck:aiDeck.slice()};
+ prevStart();
+ document.getElementById('enemyName').textContent=profile.name;
+ document.getElementById('enemyRank').textContent='Reino de '+REALMS[realm][1]+' · Grau '+profile.rank;
+ };
+ // Each opponent owns a distinct deck and a stable cycle. Never borrow the player's hand.
+ const oldUpdate=update;
+ let think=0,sequence=[],cycle=[],aiLast=0;
+ const oldBattle=startBattle;
+ startBattle=function(){oldBattle();cycle=shuffle(aiDeck.slice());sequence=cycle.splice(0,Math.min(4,cycle.length));think=1.1+Math.random();aiLast=0;};
+ // Disable the older AI's separate decision routine by preserving its normal
+ // combat update while preventing its timer from reaching zero.
+ update=function(dt){oldUpdate(dt);if(!gameOn||!profile)return;
+ think-=dt;if(think>0)return;
+ const delay=2.5-skill*.85+(Math.random()-.5)*(1.3-skill*.6);think=Math.max(.85,delay);
+ const avail=sequence.map((id,i)=>({c:CARDS.find(c=>c.id===id),i})).filter(o=>o.c&&o.c.cost<=enemyEnergy);
+ if(!avail.length)return;
+ const laneThreat=[0,1].map(l=>units.filter(u=>u.side===1&&!u.dead&&u.lane===l).reduce((v,u)=>v+(u.hp/Math.max(1,u.max))*(u.card.cost||3),0));
+ const laneFriend=[0,1].map(l=>units.filter(u=>u.side===0&&!u.dead&&u.lane===l).reduce((v,u)=>v+(u.hp/Math.max(1,u.max))*(u.card.cost||3),0));
+ const threatened=laneThreat[0]-laneFriend[0]>laneThreat[1]-laneFriend[1]?0:1;
+ let lane=threatened;
+ if(style==='aggressive'&&laneThreat[threatened]<3)lane=laneFriend[0]>laneFriend[1]?0:1;
+ if(Math.random()<.24-skill*.13)lane=1-lane;
+ const defending=laneThreat[threatened]-laneFriend[threatened]>1.8;
+ const scored=avail.map(o=>{let c=o.c,s=Math.random()*(2.3-skill*1.9);const allies=units.filter(u=>u.side===0&&!u.dead&&u.lane===lane),foes=units.filter(u=>u.side===1&&!u.dead&&u.lane===lane);const tank=allies.some(u=>u.card.hp>=500),swarm=foes.filter(u=>u.hp<300).length>=2;const nearest=foes.reduce((v,u)=>Math.min(v,Math.abs(u.y-H*.23)),H);if(defending){s+=c.hp>500?2.3:0;s+=c.type==='ranged'&&tank?2.4:0;s+=c.type==='spell'&&foes.length>=2?3.5:-2;s+=c.range>W*.28?1.4:0;s+=swarm&&c.type==='ranged'?1.3:0}else{s+=c.hp>550&&!tank?2.7:0;s+=c.type==='ranged'&&tank?3.1:0;s+=c.speed>35&&style==='aggressive'?1.6:0;s+=c.type==='spell'&&foes.length>=2?2:-2.4;s+=c.hp<300&&tank?1.1:0}if(c.cost>enemyEnergy-1)s-=1.2*skill;if(enemyEnergy>=8)s+=c.cost*.23;if(nearest<H*.13&&c.type==='ranged')s+=1.2;return {...o,score:s}}).sort((a,b)=>b.score-a.score);
+ // Humanlike variation: some pauses, but higher realms react more reliably.
+ if(Math.random()<.10-skill*.07)return;
+ const {c,i}=scored[0];let x=W*(lane?.77:.23),advanced=towers.some(t=>t.side===1&&t.lane===lane&&!t.alive);
+ let y=c.type==='spell'?(units.filter(u=>u.side===1&&!u.dead&&u.lane===lane).sort((a,b)=>b.hp-a.hp)[0]?.y||H*.72):H*(advanced?.39:.255)+(Math.random()-.5)*H*.045;
+ enemyEnergy-=c.cost;spawn(c,0,x,y);
+ sequence[i]=cycle.shift()||c.id;cycle.push(c.id);aiLast++;
+ };
+ const modal=document.querySelector('#opponentModal .modal .small');if(modal)modal.textContent='Perfil de um adversário do universo Reinos de Axé. Esta versão utiliza partidas locais contra inteligência artificial, sem multiplayer online.';
+ const prevProfile=showOpponent;
+ showOpponent=function(){prevProfile();if(!profile)return;document.getElementById('opponentInfo').innerHTML='<i class="fa-solid fa-ranking-star"></i> Grau '+profile.rank+'<br><i class="fa-solid fa-dungeon"></i> Reino de '+REALMS[profile.realm][1]+'<br><i class="fa-solid fa-users"></i> Corrente: '+profile.deck.map(id=>CARDS.find(c=>c.id===id)?.name||id).join(' · ')};
+})();
+
+
+
+(function(){'use strict';
+const originalFighter=drawFighter;
+// Consistent sprite bounding box regardless of the original PNG's aspect ratio.
+drawFighter=function(u,r){const img=heroImages[u.card.id];if(img&&img.complete&&img.naturalWidth){const size=Math.max(35,Math.min(51,W*.125));const scale=Math.min(size/img.naturalWidth,size/img.naturalHeight);const w=img.naturalWidth*scale,h=img.naturalHeight*scale;ctx.save();const sway=Math.sin(u.walk)*1.0;ctx.translate(0,sway);if(u.side===0)ctx.scale(1,-1);ctx.drawImage(img,-w/2,-h*.76,w,h);ctx.restore();return;}originalFighter(u,r)};
+// A dark-fantasy battlefield with cinematic depth, independent of the original arena geometry.
+drawAxeArena=function(){
+ const time=performance.now()*.001,realm=typeof chosenRealm==='number'?chosenRealm:0;
+ const palettes=[['#182522','#364b40','#a6b39a'],['#17291e','#42583b','#a7bd80'],['#292b30','#55575c','#c4b79b'],['#32271f','#655140','#e0ae74'],['#202b33','#4e6873','#a3c7c8'],['#302637','#584864','#b7a2c7'],['#202533','#46536b','#b7c5df']];
+ const [dark,mid,light]=palettes[Math.min(6,Math.max(0,realm))];
+ const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0b131a');g.addColorStop(.23,dark);g.addColorStop(.54,mid);g.addColorStop(.8,dark);g.addColorStop(1,'#0b131a');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ // Stonework in receding perspective: broad irregular flagstones, not a checkerboard.
+ const rand=n=>{let x=Math.sin(n*78.233+realm*14.7)*43758.5453;return x-Math.floor(x)};
+ for(let row=0;row<35;row++){const y=H*row/35,ny=H*(row+1)/35;const depth=.7+Math.abs(y/H-.5)*.8;const count=7+Math.floor(depth*3);for(let col=0;col<count;col++){const x=W*(col+rand(row*51+col)*.14)/count;const x2=W*(col+1+rand(row*73+col)*.1)/count;ctx.beginPath();ctx.moveTo(x,y+rand(row*7+col)*3);ctx.lineTo(x2,y);ctx.lineTo(x2-3,ny);ctx.lineTo(x+3,ny);ctx.closePath();ctx.fillStyle=rand(row*21+col)>.5?'#b8aa8930':'#060d153b';ctx.fill();ctx.strokeStyle='#080d12a0';ctx.lineWidth=1.25;ctx.stroke();}}
+ // Two ruined stone arcades frame the battleground, with volumetric shadows.
+ for(const side of [-1,1]){ctx.save();if(side===1){ctx.translate(W,0);ctx.scale(-1,1)}const wall=ctx.createLinearGradient(0,0,W*.12,0);wall.addColorStop(0,'#050b0f');wall.addColorStop(.55,'#29312f');wall.addColorStop(1,'#64706733');ctx.fillStyle=wall;ctx.fillRect(0,0,W*.105,H);for(let k=0;k<9;k++){const y=k*H/8;ctx.fillStyle='#78827626';ctx.fillRect(0,y,W*.095,3);ctx.fillStyle='#03090c77';ctx.fillRect(W*.07,y+3,4,H/8-4)}ctx.restore()}
+ // Ancient engraved circular sigil with worn metal inlay.
+ ctx.save();ctx.translate(W*.5,H*.51);ctx.scale(1,.55);for(let j=0;j<3;j++){ctx.beginPath();ctx.arc(0,0,W*(.20+j*.043),0,Math.PI*2);ctx.strokeStyle=j===1?'#d9ba7880':'#111918b8';ctx.lineWidth=j===1?2:7;ctx.stroke()}for(let j=0;j<8;j++){const a=j*Math.PI/4+time*.015;ctx.beginPath();ctx.moveTo(Math.cos(a)*W*.12,Math.sin(a)*W*.12);ctx.lineTo(Math.cos(a+.48)*W*.19,Math.sin(a+.48)*W*.19);ctx.strokeStyle='#c9a76d55';ctx.lineWidth=2;ctx.stroke()}ctx.restore();
+ // Torchlight and low-lying mist provide atmospheric depth.
+ for(const x of [W*.09,W*.91])for(const y of [H*.31,H*.7]){const halo=ctx.createRadialGradient(x,y,1,x,y,W*.19);halo.addColorStop(0,'#ffc2773b');halo.addColorStop(.4,'#e68c3920');halo.addColorStop(1,'#ff9b2800');ctx.fillStyle=halo;ctx.fillRect(x-W*.2,y-W*.2,W*.4,W*.4);ctx.fillStyle='#f4c07a';ctx.beginPath();ctx.ellipse(x,y+Math.sin(time*3+x)*2,2,6,0,0,7);ctx.fill()}
+ for(let i=0;i<11;i++){const y=H*(.1+i*.085);const x=Math.sin(time*.25+i*1.8)*W*.09;const mist=ctx.createLinearGradient(0,y-12,0,y+20);mist.addColorStop(0,'#b5c8bf00');mist.addColorStop(.5,'#b5c8bf0c');mist.addColorStop(1,'#b5c8bf00');ctx.fillStyle=mist;ctx.fillRect(x,y,W*.9,32)}
+ const shade=ctx.createRadialGradient(W*.5,H*.5,W*.13,W*.5,H*.5,H*.79);shade.addColorStop(0,'#00000000');shade.addColorStop(1,'#03070ac9');ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
+};
+})();
+
+
+
+(function(){'use strict';
+// RPG presentation layer. Keep every hero upright: never mirror on the Y axis.
+const priorFighterV31=drawFighter;
+const reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const phaseFor=u=>((u.x*13.17+u.y*7.3)%6.28);
+function ellipse(x,y,rx,ry,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(x,y,Math.max(1,rx),Math.max(1,ry),0,0,Math.PI*2);ctx.fill()}
+function line(x1,y1,x2,y2,stroke,width){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}
+drawFighter=function(u,r){
+ const img=heroImages[u.card.id];if(!(img&&img.complete&&img.naturalWidth&&img.naturalHeight)){priorFighterV31(u,r);return}
+ const t=performance.now()*.001,seed=phaseFor(u),walking=Math.min(1,Math.abs(u.card.speed||25)/50);
+ // 22-30% larger than V30; consistent full-body image box for all cards.
+ const box=Math.max(47,Math.min(67,W*.158));const scale=Math.min(box/img.naturalWidth,box/img.naturalHeight);
+ const w=img.naturalWidth*scale,h=img.naturalHeight*scale;
+ const flying=['iara','almas','tranca','padilha'].includes(u.card.id);
+ const hopping=u.card.id==='pedrinho';const idle=reduceMotion?0:Math.sin(t*(hopping?8:3.2)+seed);
+ const lift=hopping?Math.abs(idle)*7:flying?4+idle*3:Math.abs(idle)*walking*1.8;
+ const attacking=u.attackPose>0;
+ ctx.save();
+ // Ground contact and depth cues are independent from sprite orientation.
+ ellipse(0,r*.9,Math.max(11,w*.39),Math.max(3,w*.105),'#020608a6');
+ if(flying){const hue=u.card.id==='almas'?'92,202,255':u.card.id==='iara'?'74,205,244':'235,51,78';
+  for(let i=0;i<4;i++){const dx=Math.sin(t*1.9+seed+i*1.8)*(9+i*2);ellipse(dx,r*.7+i*2,9+i*3,3+i*.8,`rgba(${hue},${.12-i*.02})`)}
+ }
+ if(u.card.id==='boiadeiro'&&!reduceMotion){for(let i=0;i<9;i++){const a=t*1.5+i*2.3;ellipse(Math.sin(a)*box*.6,r*.8+Math.cos(a*.8)*8,2+i%3*1.7,1.5+i%3,'#c9a37758')}}
+ if(u.card.id==='baiana'){
+  // Dance uses gentle skirt sway, not continuous spinning or inversion.
+  for(let i=0;i<3;i++){ctx.strokeStyle=['#f7e5ae77','#d6efff55','#fff5d455'][i];ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,r*.56,box*(.33+i*.095),box*(.12+i*.025),Math.sin(t*1.4)*.12,Math.PI*.1,Math.PI*.9);ctx.stroke()}
+ }
+ ctx.translate(0,-lift);
+ // A very small tilt makes sprites feel alive without rotating upside-down.
+ const lean=reduceMotion?0:Math.sin(t*2.5+seed)*.022+(attacking?Math.sin(t*12)*.045:0);
+ ctx.rotate(lean);
+ // Side changes only the direction of gaze for original artwork; do not flip Y.
+ ctx.drawImage(img,-w*.5,-h*.81,w,h);
+ if(attacking&&!reduceMotion){ctx.save();ctx.globalCompositeOperation='screen';ctx.strokeStyle=u.card.color||'#ffda8b';ctx.lineWidth=2;ctx.globalAlpha=.48;ctx.beginPath();ctx.arc(0,-h*.33,box*.39,-1.5,.5);ctx.stroke();ctx.restore()}
+ ctx.restore();
+};
+// Extra battle atmosphere and art direction; no gameplay rules changed.
+const prevArenaV31=drawAxeArena;
+drawAxeArena=function(){prevArenaV31();const t=performance.now()*.001;
+ ctx.save();
+ // Asymmetric moss, fractures, gold veins, embers: a unique ancestral citadel.
+ for(let i=0;i<125;i++){
+  const f=Math.sin(i*127.13)*43758.5453,fx=f-Math.floor(f);
+  const g=Math.sin(i*73.77+9)*14591.29,fy=g-Math.floor(g);
+  const x=fx*W,y=fy*H;const edge=Math.min(x,W-x)/W;
+  if(edge<.19){ellipse(x,y,1.5+(i%4)*1.2,.8+(i%3)*.9,i%4===0?'#a8a06a43':'#4a74533c')}
+  else if(i%4===0){line(x,y,x+W*.018,y-H*.009,i%3===0?'#bdab7850':'#080d0f78',.7)}
+ }
+ // Four original obelisks marking the warding circle.
+ for(const [x,y] of [[W*.16,H*.16],[W*.84,H*.16],[W*.16,H*.84],[W*.84,H*.84]]){
+  ellipse(x+3,y+8,W*.044,H*.018,'#0009');
+  ctx.fillStyle='#121d21';ctx.beginPath();ctx.moveTo(x-W*.023,y+H*.027);ctx.lineTo(x-W*.019,y-H*.022);ctx.lineTo(x,y-H*.048);ctx.lineTo(x+W*.022,y-H*.022);ctx.lineTo(x+W*.023,y+H*.027);ctx.closePath();ctx.fill();
+  line(x,y-H*.034,x,y+H*.01,'#bdab76a8',1.5);
+  const glow=ctx.createRadialGradient(x,y-H*.035,1,x,y-H*.035,W*.11);glow.addColorStop(0,'#71d7d144');glow.addColorStop(1,'#71d7d100');ctx.fillStyle=glow;ctx.fillRect(x-W*.11,y-H*.035-W*.11,W*.22,W*.22)
+ }
+ if(!reduceMotion){
+  for(let i=0;i<24;i++){const x=((i*79.7+Math.sin(t*.24+i)*16)%W+W)%W,y=((i*113.3-t*(5+i%5))%H+H)%H;ellipse(x,y,1+i%3*.35,1+i%3*.35,i%3===0?'#f3c47b8c':'#8be1d777')}
+ }
+ ctx.restore();
+};
+// Minor reactive screen feedback without changing battle positions or hitboxes.
+const prevDrawV31=draw;
+draw=function(){prevDrawV31();if(!gameOn)return;const t=performance.now()*.001;ctx.save();
+ const pulse=.12+.07*Math.sin(t*2.1);const aura=ctx.createRadialGradient(W*.5,H*.5,4,W*.5,H*.5,W*.42);aura.addColorStop(0,`rgba(217,185,116,${pulse*.19})`);aura.addColorStop(1,'rgba(217,185,116,0)');ctx.fillStyle=aura;ctx.fillRect(0,0,W,H);
+ ctx.restore()};
+})();
+
+
+
+(function(){'use strict';
+// V32: tactical sanctuary range + distinct cinematic spell/hero visuals.
+const fx=[];let previousFrame=performance.now();
+const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+const add=(type,x,y,color,side=1,scale=1)=>{if(fx.length>115)fx.splice(0,fx.length-115);fx.push({type,x,y,color,side,scale,t:0,d:type==='ward'?1.25:type==='ring'?.7:type==='rune'?.9:.55})};
+const originalAttack=applyHeroAttack;
+applyHeroAttack=function(u,t){
+ originalAttack(u,t);
+ const id=u.card.id,atk=fighterStyle(u).attack;
+ const colors={flechas:'#72caff',rompe:'#e9cf91',rompemato:'#e9cf91',boiadeiro:'#d9ad6b',pedrinho:'#ffc9f1',almas:'#99c8fa',baiana:'#efffff',tranca:'#e63255',padilha:'#fc547d',jurema:'#8af3b1',pai:'#f9e6b1',iara:'#6fe8ff',tiriri:'#bb79fa',marinheiro:'#7acbff'};
+ const c=colors[id]||u.card.color||'#f3d59a';
+ if(['baiana','iansa'].includes(id)||atk==='gust'){add('wind',u.x,u.y,c,u.side,1.5);add('ring',t.x,t.y,c,u.side,1)}
+ else if(['tranca','padilha','figueira'].includes(id)){add('rune',t.x,t.y,c,u.side,1.2);add('embers',u.x,u.y,c,u.side,1)}
+ else if(['jurema','pai'].includes(id)){add('ward',u.x,u.y,c,u.side,1.1)}
+ else if(['flechas','seteflechas'].includes(id)){add('arrows',t.x,t.y,c,u.side,1.2)}
+ else if(['almas','tiriri'].includes(id)){add('miasma',t.x,t.y,c,u.side,1.25)}
+ else if(['boiadeiro','tereza'].includes(id)){add('dust',t.x,t.y,c,u.side,1.3)}
+ else if(['pedrinho'].includes(id)){add('stars',t.x,t.y,c,u.side,1.2)}
+ else if(['iara','marinheiro','iemanja'].includes(id)){add('water',t.x,t.y,c,u.side,1.3)}
+ else if(['rompe','rompemato','ogum'].includes(id)){add('slash',t.x,t.y,c,u.side,1.3)}
+ else if(['xango'].includes(id)){add('lightning',t.x,t.y,c,u.side,1.2)}
+ else add('ring',t.x,t.y,c,u.side,.75);
+};
+const oldSpawn=spawn;
+spawn=function(card,side,x,y){const before=units.length;oldSpawn(card,side,x,y);if(card.type==='spell'){
+ const id=card.id;
+ add(id.includes('dende')?'ward':id.includes('mironga')?'miasma':id.includes('brasa')?'embers':'rune',x,y,card.color||'#e8c68c',side,2.4);
+ add('ring',x,y,card.color||'#e8c68c',side,2);
+}else if(units.length>before){const u=units[units.length-1];add('rune',u.x,u.y,u.card.color||'#e7c48a',side,.7)}};
+const oldShoot=shoot;
+shoot=function(a,b,damage,color){oldShoot(a,b,damage,color);if(a.card?.id==='flechas'){
+ // A single gameplay volley, seven visible trails; avoids multiplying damage by seven.
+ const dx=b.x-a.x,dy=b.y-a.y;
+ for(let k=-3;k<=3;k++){
+ const px=b.x+(-dy/(Math.hypot(dx,dy)||1))*k*4,py=b.y+(dx/(Math.hypot(dx,dy)||1))*k*4;
+ add('arrowtrail',px,py,'#8ad9ff',a.side,.8)
+ }
+ }};
+function paint(e){const p=Math.min(1,e.t/e.d),a=1-p,x=e.x,y=e.y,r=(13+45*p)*e.scale;
+ ctx.save();ctx.globalAlpha=Math.max(0,a)*.85;ctx.lineCap='round';ctx.lineJoin='round';
+ const glow=(color,blur=15)=>{ctx.shadowColor=color;ctx.shadowBlur=blur};
+ const ring=(radius,flatten=.4)=>{ctx.beginPath();ctx.ellipse(x,y,radius,radius*flatten,0,0,Math.PI*2);ctx.stroke()};
+ ctx.strokeStyle=e.color;ctx.fillStyle=e.color;ctx.lineWidth=Math.max(1,3*(1-p));glow(e.color);
+ if(e.type==='ring'||e.type==='water'||e.type==='ward'||e.type==='wind'){ring(r,e.type==='wind'?.6:.34);if(e.type!=='ring'){ring(r*.65,.32);if(e.type==='ward'){ctx.setLineDash([4,5]);ring(r*1.15,.35);ctx.setLineDash([])}if(e.type==='wind'){for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(x,y-r*.15,r*.55+i*4,-2+p*2,1.1+p*2);ctx.stroke()}}}}
+ else if(e.type==='rune'){ring(r*.85,.45);for(let k=0;k<7;k++){const th=k*Math.PI*2/7+p;ctx.beginPath();ctx.moveTo(x+Math.cos(th)*r*.6,y+Math.sin(th)*r*.25);ctx.lineTo(x+Math.cos(th)*r*.94,y+Math.sin(th)*r*.43);ctx.stroke()}}
+ else if(e.type==='slash'){ctx.lineWidth=5*(1-p)+1;ctx.beginPath();ctx.arc(x,y,r*.8,Math.PI*1.13,Math.PI*1.92);ctx.stroke();ctx.strokeStyle='#ffffff';ctx.lineWidth=1.5;ctx.stroke()}
+ else if(e.type==='lightning'){ctx.beginPath();ctx.moveTo(x-r*.25,y-r);ctx.lineTo(x+r*.08,y-r*.22);ctx.lineTo(x-r*.1,y-r*.18);ctx.lineTo(x+r*.2,y+r*.3);ctx.stroke()}
+ else if(e.type==='arrows'||e.type==='arrowtrail'){for(let k=-3;k<=3;k++){const xx=x+k*5;ctx.beginPath();ctx.moveTo(xx-3,y-r*.45);ctx.lineTo(xx,y+r*.15);ctx.lineTo(xx+2,y+r*.25);ctx.stroke()}}
+ else if(['embers','dust','stars','miasma'].includes(e.type)){for(let k=0;k<10;k++){const th=k*2.399+p*2,rad=r*(.22+(k%5)*.16),xx=x+Math.cos(th)*rad,yy=y+Math.sin(th)*rad*.55-(e.type==='miasma'?p*22:0);ctx.beginPath();ctx.arc(xx,yy,(e.type==='dust'?4:2.5)*(1-p*.6),0,Math.PI*2);ctx.fill()}}
+ ctx.restore()}
+const oldDraw=draw;
+draw=function(){oldDraw();if(!gameOn)return;const now=performance.now();const dt=Math.min(.05,Math.max(0,(now-previousFrame)/1000));previousFrame=now;
+ for(let i=fx.length-1;i>=0;i--){const e=fx[i];e.t+=dt*(reduced?2.5:1);if(e.t>=e.d){fx.splice(i,1);continue}paint(e)}
+ // Visible tower attack radius when selecting a card: a tactical cue, not permanent clutter.
+ if(selected>=0){ctx.save();ctx.setLineDash([4,7]);ctx.lineWidth=1;for(const t of towers){if(!t.alive||t.side!==0)continue;ctx.beginPath();ctx.arc(t.x,t.y,t.range,0,Math.PI*2);ctx.strokeStyle='#ffb8843e';ctx.stroke()}ctx.restore()}
+};
+const oldStart=startBattle;
+startBattle=function(){fx.length=0;previousFrame=performance.now();oldStart()};
+})();

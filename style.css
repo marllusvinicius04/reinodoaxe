@@ -58,6 +58,8 @@
 .art-v8-showcase{margin:10px 0 20px}.art-v8-item{display:flex;align-items:center;gap:12px;padding:11px;margin:8px 0;border:1px solid #a7cfdb55;border-radius:13px;background:linear-gradient(100deg,#122b39,#101b29);color:#f0ead8}.art-v8-item img{width:72px;height:85px;object-fit:contain;filter:drop-shadow(0 0 9px #3fd7f466)}.art-v8-item div{flex:1}.art-v8-item b{display:block;font-size:13px}.art-v8-item small{display:block;font-size:11px;color:#a9c7d0;margin-top:4px}.art-v8-item i{color:#d8b978}.card .hero-art{width:100%;height:75%;object-fit:contain;position:absolute;top:7%;left:0;filter:drop-shadow(0 3px 8px #000b)}
 
 
+.battlehead{height:48px!important;min-height:48px;flex-shrink:0;padding:3px 5px!important;gap:2px!important}.battlehead .enemy-profile{min-width:0!important;max-width:37%;padding:3px 5px!important}.battlehead .enemy-avatar{width:23px;height:23px;font-size:11px;flex-shrink:0}.battlehead .enemy-details{min-width:0}.battlehead .enemy-details b{max-width:100%;font-size:9px}.battlehead .enemy-details small{max-width:100%;font-size:8px}.battlehead>span{font-size:10px!important;white-space:nowrap}.battlehead #timer{font-size:12px!important}.battlehead>button:last-child{padding:4px!important}.battlefield{min-height:0!important;overflow:hidden!important;background:#162f31!important}@media(max-width:390px){.battlebottom{height:128px!important;padding:5px!important}.hand{height:79px!important}.hand .card{height:77px!important}.battlehead .enemy-avatar{display:none}}@media(max-height:730px){.battlebottom{height:128px!important;padding:5px!important}.hand{height:78px!important}.hand .card{height:77px!important}}
+
 
 #result .modal.v14-win{animation:v14Victory .9s cubic-bezier(.15,.8,.3,1) both;border-color:#e6c178;box-shadow:0 0 50px #f8c75d66,inset 0 0 30px #ffe7a019}
 #result .modal.v14-loss{animation:v14Defeat .85s ease-out both;filter:saturate(.7)}
@@ -210,3 +212,15 @@
 .card img.hero-art,.hand .card img.hero-art{display:block!important;visibility:visible!important;opacity:1!important;object-fit:contain!important;z-index:2!important}
 @media(max-width:370px){#lobby .brand img{height:56px}}
 
+
+.battlefield{background:#103f45!important}.battlehead .enemy-profile{min-width:128px}.enemy-details b{max-width:106px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.enemy-details small{max-width:115px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+
+/* The battle field keeps its full available height; towers are not cropped by ornamental overlays. */
+.battlefield{overflow:hidden;isolation:isolate}
+#battleCanvas{display:block;max-width:100%;touch-action:none}
+@media(max-width:600px){.battlehead{position:relative;z-index:3}.battlefield{min-height:0}}
+
+
+<!-- battle viewport priority -->
+@media(max-height:740px){.battlehead{height:43px!important;min-height:43px!important;padding:2px 4px!important}.battlebottom{height:124px!important;padding:5px!important}.hand{height:79px!important}.hand .card{height:76px!important}}
